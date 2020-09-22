@@ -91,11 +91,11 @@ def plot_heat_map(prediction, filename):
 
 def plot_decision_boundaries(x, prediction, threshold0, threshold1, filename):
     group0 = prediction <= threshold0
-    plt.scatter(x[group0, 0], x[group0, 1], color='r')
+    plt.scatter(x[group0, 0], x[group0, 1], s=5, color='r')
     group1 = prediction >= threshold1
-    plt.scatter(x[group1, 0], x[group1, 1], color='g')
+    plt.scatter(x[group1, 0], x[group1, 1], s=5, color='g')
     group_ood = (threshold0 < prediction) & (prediction < threshold1)
-    plt.scatter(x[group_ood, 0], x[group_ood, 1], color='b')
+    plt.scatter(x[group_ood, 0], x[group_ood, 1], s=5, color='b')
     fig = plt.gcf()
     fig.set_size_inches(12, 12)
     plt.savefig(filename)
@@ -112,6 +112,7 @@ def plot_data(x, y):
     fig = plt.gcf()
     fig.set_size_inches(12, 12)
     plt.savefig('data/data.png')
+    plt.close()
 
 
 def test_classifiers():
