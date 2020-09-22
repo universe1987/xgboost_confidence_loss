@@ -44,7 +44,7 @@ class XGBConfidenceClassifier(XGBRegressor):
         prob = 1.0 / (1.0 + np.exp(-y_pred))
         grad = prob - y_true
         hess = prob * (1 - prob)
-        # Hession of the KL term the same as binary cross entropy
+        # Hessian of the KL term is the same as Hessian of binary cross entropy
         grad_ood = prob - 0.5
         grad[y_true == -1] = grad_ood[y_true == -1]
         return grad, hess
