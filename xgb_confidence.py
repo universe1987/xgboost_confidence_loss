@@ -8,31 +8,34 @@ sns.set_color_codes()
 
 
 class XGBConfidenceClassifier(XGBRegressor):
-    def __init__(self, base_score=0.5,
-                 booster='gbtree', colsample_bylevel=1,
-                 colsample_bytree=1, gamma=0, learning_rate=0.1, max_delta_step=0, max_depth=5, min_child_weight=1,
-                 missing=None, n_estimators=100,
-                 n_jobs=1, nthread=None, objective='reg:linear', random_state=0, reg_alpha=0, reg_lambda=1,
-                 scale_pos_weight=1, seed=None, silent=True, subsample=1):
-        super().__init__(base_score=base_score, booster=booster, colsample_bylevel=colsample_bylevel,
-                         colsample_bytree=colsample_bytree, gamma=gamma, learning_rate=learning_rate,
-                         max_delta_step=max_delta_step,
-                         max_depth=max_depth, min_child_weight=min_child_weight, missing=missing,
-                         n_estimators=n_estimators,
-                         n_jobs=n_jobs, nthread=nthread, objective=objective, random_state=random_state,
-                         reg_alpha=reg_alpha, reg_lambda=reg_lambda, scale_pos_weight=scale_pos_weight, seed=seed,
-                         silent=silent, subsample=subsample)
+    """
+    Binary classifier with confidence loss.
+    This only works for binary classification, I customized the loss function to be equivalent to the confidence loss.
+    """
+
+    def __init__(self, **kwargs):
+        super().__init__(objective=XGBConfidenceClassifier.confidence_loss,
+                         max_depth=5, learning_rate=0.1, n_estimators=100,
+                         verbosity=None, booster='gbtree',
+                         tree_method=None, n_jobs=1, gamma=0,
+                         min_child_weight=1, max_delta_step=None, subsample=1,
+                         colsample_bytree=1, colsample_bylevel=1,
+                         colsample_bynode=1, reg_alpha=0, reg_lambda=1,
+                         scale_pos_weight=1, base_score=0.5, random_state=None,
+                         missing=np.nan, num_parallel_tree=None,
+                         monotone_constraints=None, interaction_constraints=None,
+                         importance_type="gain", gpu_id=None,
+                         validate_parameters=None, **kwargs)
 
     def fit(self, X, y, **kwargs):
-        super().set_params(objective=XGBConfidenceClassifier.confidence_loss)
         super().fit(X, y, **kwargs)
         return self
 
-    def predict(self, X, output_margin=False, ntree_limit=None, validate_sfeatures=True):
+    def predict(self, X, output_margin=False, ntree_limit=None, validate_features=True, base_margin=None):
         y = super().predict(X)
         return 1 - 1 / (1 + np.exp(-y))
 
-    def predict_proba(self, X):
+    def predict_proba(self, X, ntree_limit=None, validate_features=True, base_margin=None):
         y = self.predict(X)
         return np.array([y, 1 - y]).T
 
@@ -41,12 +44,16 @@ class XGBConfidenceClassifier(XGBRegressor):
         prob = 1.0 / (1.0 + np.exp(-y_pred))
         grad = prob - y_true
         hess = prob * (1 - prob)
+        # Hession of the KL term the same as binary cross entropy
         grad_ood = prob - 0.5
         grad[y_true == -1] = grad_ood[y_true == -1]
         return grad, hess
 
 
 def generate_training_data(n_negative=1000, n_positive=1000, n_ood=1000):
+    """
+    Generate training data with 3 classes {0, 1, -1,} OOD data are labeled -1.
+    """
     n = n_negative + n_positive + n_ood
     x = np.zeros([n, 2])
     y = np.zeros(n)
@@ -75,6 +82,7 @@ def train_binary_classifier(x, y):
 
 def train_multi_class_classifier(x, y):
     clf = XGBClassifier()
+    # change OOD label to 2 in order to fit multi class classifier
     y_copy = y.copy()
     y_copy[y_copy < 0] = 2
     clf.fit(x, y_copy)
